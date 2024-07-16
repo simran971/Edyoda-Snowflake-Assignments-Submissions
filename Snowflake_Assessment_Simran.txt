@@ -1,3 +1,7 @@
+Name : Simran Soni
+EMP_ID : 1009094
+
+
 --Answer 1. By using command:
 USE WAREHOUSE 'COMPUTE_WH_XL';
 
