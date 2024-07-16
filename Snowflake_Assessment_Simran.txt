@@ -1,0 +1,121 @@
+--Answer 1. By using command:
+USE WAREHOUSE 'COMPUTE_WH_XL';
+
+--Answer 2.
+
+SELECT vehicle_data:supplier_name::string AS supplier_name
+FROM vehicle_inventory;
+
+--Answer 3.
+--There are 3 types of internal stage - User stage, Table stage & Name stage.
+--To start snowsql from command prompt:
+snowsql --version;
+snowsql -a qjhtlxv-mssimrans;
+--entering username & password to initialise snowsql
+--To load data from local folder into snowflake we use below steps:
+LIST @~ ;
+USE ROLE ACCOUNTADMIN;
+USE WAREHOUSE COMPUTE_WH;
+USE INGEST_DATA;
+--Create a table where we will load data:
+CREATE OR REPLACE TABLE ORDERS (Order_id int, order_date timestamp, customer_id int, status varchar (50));
+--Load data using user stage
+PUT file://C:\Users\simrans\Desktop\orders.csv @~/;
+COPY INTO ORDERS FROM @~/orders.csv FILE_FORMAT = (TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+PUT file://C:\Users\simrans\Desktop\orders.csv @%ORDERS;
+--
+CREATE STAGE stage1;
+PUT file://C:\Users\simrans\Desktop\orders.csv @stage1;
+COPY INTO ORDERS FROM @my_stage/orders.csv FILE_FORMAT = (TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+
+
+
+--Answer 4.
+CREATE WAREHOUSE xf_tuts_wh  WITH
+WAREHOUSE_SIZE = ‘SMALL’
+AUTO_SUSPEND = 600
+AUTO_RESUME = TRUE
+INITIALLY_SUSPENDED = TRUE;
+
+--Answer 5.
+create or replace file format ingest_data.customer.csv_format
+type = csv
+--field_delimiter = '|'
+skip_header = 1;
+
+--Answer 6. 
+
+ALTER WAREHOUSE COMPUTE_WH SUSPEND;
+
+--Answer 7.
+
+SELECT CONCAT('%', EMPLOYEE, '%') AS EMPLOYEE_NEW
+FROM EMPLOYEE;
+
+--Answer 8.
+
+SELECT 
+  car_sales:dealership AS dealership
+FROM 
+  car_sales;
+  
+--Answer 9.
+
+--Assuming Cluster 1 was running for 3 hours
+--Cluster 2 running for 2 hours
+--Cluster 3 running for 15 minutes
+--Calculating credits for cluster 1: 6 (medium wh) + 12 (large wh)
+--Calculating credits for cluster 2: 16 (large wh)
+--Calculating credits for cluster 3: 2 (large wh)
+
+Total credits are 36.
+
+--Answer 10.
+SHOW PIPES;
+
+--Answer 11.
+--There are 3 types of time_travel methods, explained below :
+--1.	At the time_stamp:
+
+SELECT EMAIL_ID FROM CUSTOMER AT 
+(TIMESTAMP => ‘<time_stamp>’ :: timestamp_tz) ;
+
+--2.	Before the time_stamp;
+
+SELECT  EMAIL_ID FROM CUSTOMER BEFORE
+(TIMESTAMP => ‘<time_stamp>’ :: timestamp_tz);
+
+--3.	Before the query_id ;
+
+SELECT DISTINCT EMAIL_ID FROM CUSTOMER BEFORE
+(STATEMENT => ‘query_id’) ;
+
+--Answer 12.
+
+--By using quotes (") around records that may contain commas :
+--Street_name",city
+
+--Answer 13.
+--In case of Internal stage
+SELECT *
+FROM @internal_stage_name/health.csv
+(FILE_FORMAT => 'csv_format');
+
+--In case of external stage
+SELECT *
+FROM @s3_stage/health.csv
+(FILE_FORMAT => 'csv_format');
+
+--Answer 15.
+Giving full access to IAM Role selected.
+
+
+
+
+
+
+
+
+
+
+
