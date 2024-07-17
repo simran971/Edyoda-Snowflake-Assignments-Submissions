@@ -110,8 +110,36 @@ SELECT *
 FROM @s3_stage/health.csv
 (FILE_FORMAT => 'csv_format');
 
+
+
+--Answer 14.
+---- Step 1: Identify duplicates and assign row numbers
+WITH ranked_products AS (
+    SELECT 
+        id, 
+        product_name, 
+        category, 
+        price,
+        ROW_NUMBER() OVER (PARTITION BY product_name, category, price ORDER BY id) AS row_num
+    FROM products
+)
+
+-- Step 2: Delete duplicates
+DELETE FROM products
+USING ranked_products
+WHERE products.id = ranked_products.id
+AND ranked_products.row_num > 1;
+
+
 --Answer 15.
-Giving full access to IAM Role selected.
+--Creating Internal Stage 
+--Using Get Command in snowsql to get the souce file from snowflake to local storage. 
+get @%emp_basic;
+--Creating External Stage
+List @%emp_basic
+--Full access to IAM Role
+--Using Copy Into command & File format for downloaded file (CSV, Parquet, etc)
+
 
 
 
