@@ -68,11 +68,11 @@ FROM
 --Assuming Cluster 1 was running for 3 hours
 --Cluster 2 running for 2 hours
 --Cluster 3 running for 15 minutes
---Calculating credits for cluster 1: 6 (medium wh) + 12 (large wh)
+--Calculating credits for cluster 1: 4 (medium wh) + 12 (large wh)
 --Calculating credits for cluster 2: 16 (large wh)
 --Calculating credits for cluster 3: 2 (large wh)
 
-Total credits are 36.
+Total credits are 34.
 
 --Answer 10.
 SHOW PIPES;
