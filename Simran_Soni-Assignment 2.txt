@@ -134,15 +134,19 @@ FROM @DEMO_DB.PUBLIC.MY_S3_UNLOAD_STAGE/Customer_data/
 SELECT * FROM CUSTOMER_DATA;
 
 
---Question: Now we can directly query data from s3 through view. What is the disadvantage of using 
---this approach ? Can you see partitions being scanned in the backend ?
+--Question: Now we can directly query data from s3 through view. What is the disadvantage of using this approach ? 
+--Can you see partitions being scanned in the backend ?
 
---Answer: Disadvantages of this approach is: Data needs to be fetched from S3 storage which can be time consuming. This can results in more latency compared to querying data stored in Snowflake.
+--Answer: Disadvantages of this approach is: 
+--1. Data needs to be fetched from S3 storage which can be time consuming. This can results in more latency compared to querying data stored in Snowflake.
+--2. S3 does not support indexing, which can lead to inefficient queries, especially with large datasets.
+--3. Managing partitions manually in S3 can be complex and tend to give error.
+
 --There is no partitions scanned in this process. 
 
 
---Joining the view we created with a table on snowflake:
---Create a sample snowflake table as below
+----------------------Joining the view we created with a table on snowflake:
+----------------------Create a sample snowflake table as below
 
 Create or replace transient table CUSTOMER_SNOWFLAKE_TABLE
 AS
