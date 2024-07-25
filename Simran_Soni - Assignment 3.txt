@@ -1,0 +1,136 @@
+--ASSIGNMENT 3: BUILD A SNOWFLAKE CONTINUOUS DATA PIPELINE USING SNOWPIPE, AWS, STREAM, TASKS & EXTERNAL STAGES
+--In this project, we to build Data PIPELINE to automate the manual steps involved in building and managing ELT logic for --transforming and optimizing continuous data loads using Snowflake DATA PIPELINE
+
+--STEP 1. Creating AWS S3 BUCKET, Creating AWS User & CONFIGURING ACCESS:
+--Policy name: AmazonS3FullAccess.
+
+--STEP 2. CREATING FILE FORMAT & INTEGRATION OBJECT FOR EXTERNAL STAGE:
+--creating json format
+create or replace file format json_format
+  type = 'json';
+
+--creating integration object for external stages
+create or replace storage integration s3_json		
+  type = external_stage		
+  storage_provider = s3		
+  enabled = true		
+  storage_aws_role_arn = 'arn:aws:iam::227122424608:role/Assign3'		
+  storage_allowed_locations = ('s3://assignment3-sn25/file-upload/');
+
+desc integration s3_json;
+
+--STEP 3. CREATING EXTERNAL STAGE : external stage on s3(AWS):
+CREATE OR REPLACE STAGE my_S3ext_stage
+  URL = 's3://assignment3-sn25/file-upload/'
+  STORAGE_INTEGRATION = s3_json
+  file_format = json_format;
+
+
+--STEP 4. CREATE table in Snowflake with VARIANT column:
+CREATE OR REPLACE TABLE person_data (id INTEGER, name STRING, details VARIANT);
+
+
+--STEP 5. Create a Snowpipe with Auto Ingest Enabled:
+CREATE OR REPLACE PIPE sn_pipe
+AUTO_INGEST = TRUE
+AS
+COPY INTO PERSON_NESTED
+FROM @my_S3ext_stage
+FILE_FORMAT = (TYPE = 'JSON');
+
+SHOW PIPES;
+
+
+--STEP 6. Subscribe the Snowflake SQS Queue in s3:
+--Created event_notication in S3 bucket, and pasted notification_channel arn into it.
+--notification_channel : arn:aws:sqs:ap-south-1:211125613752:sf-snowpipe-AIDATCKARGS4PZXVKKG7O-wHpJazSI46h0gFSgMfb_0A
+
+
+--STEP 7. Testing Snowpipe by copying a JSON file with name SAMPLE.JSON and uploading the file to s3 in path
+--Now, Uploaded a sample json file into S3 bucket to test the pipe.
+
+
+
+----------------------------------------------------------------------------------------------------------------------
+--STEP 8. VALIDATING SNOWPIPE:
+--validation if Snowpipe ran successfully.
+
+--A. Checking the pipe status
+SHOW PIPES;
+
+--B. Commands to check the pipe status:
+ALTER PIPE sn_pipe REFRESH;
+-----On refreshing the pipe, the JSON file has been successfully uploaded into snowflake--------
+
+--C. Checking by COPY_HISTORY
+SELECT * FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
+  TABLE_NAME => 'PERSON_NESTED',
+  START_TIME => DATEADD('day', -7, CURRENT_TIMESTAMP())));
+--------JSON file has been uploaded successfully into Snowflake-------------------
+--------STATUS - LOADED---------
+
+
+--D. Finally checking if data is loaded to table by querying the table:
+SELECT * FROM PERSON_NESTED;
+
+
+-----------------Change Data Capture using Streams, Tasks and Merge
+
+
+--STEP 9. Create Stream on PERSON_NESTED:
+
+CREATE OR REPLACE STREAM PERSON_NESTED_STREAM ON TABLE PERSON_NESTED;
+
+--STEP 10. Create PERSON_MASTER Table:
+CREATE OR REPLACE TABLE PERSON_MASTER (
+    id STRING,
+    name STRING,
+    age NUMBER,
+    address STRING);
+
+--STEP 11. Create Task to Unnest Data
+CREATE OR REPLACE TASK unnest_task
+SCHEDULE = '1 minute'
+WHEN SYSTEM$STREAM_HAS_DATA('PERSON_NESTED_STREAM')
+AS
+MERGE INTO PERSON_MASTER t
+USING (
+    SELECT data:id::STRING as id,
+           data:name::STRING as name,
+           data:age::NUMBER as age,
+           data:address::STRING as address
+    FROM PERSON_NESTED_STREAM
+) s
+ON t.id = s.id
+WHEN MATCHED THEN UPDATE SET t.name = s.name, t.age = s.age, t.address = s.address
+WHEN NOT MATCHED THEN INSERT (id, name, age, address) VALUES (s.id, s.name, s.age, s.address);
+
+-----------------------------TESTING THE PIPELINE----------------------------------------------------
+
+--Step 12. Test the Pipeline
+
+--A) TRUNCATING THE DATA IN TABLES:
+TRUNCATE TABLE PERSON_NESTED;
+TRUNCATE TABLE PERSON_MASTER;
+
+--B) UPLOADED THE FILES AGAIN ON S3
+
+
+--C) VALIDATING AGAIN
+SELECT * FROM PERSON_NESTED;
+
+SELECT * FROM PERSON_NESTED_STREAM;
+
+SELECT * FROM PERSON_MASTER;
+
+--D) CHECKING COPY_HISTORY
+SELECT *
+FROM TABLE(PERSON_NESTED( PIPE_NAME => 'SN_PIPE', START_TIME => DATEADD(hour, -4, CURRENT_TIMESTAMP())));
+
+--STEP 14. 
+
+SELECT METADATA$ACTION, METADATA$ROW_ID, data
+FROM PERSON_NESTED_STREAM;
+
+
+
