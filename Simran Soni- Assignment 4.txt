@@ -1,0 +1,135 @@
+--ASSIGNMENT 4
+
+--Below are the steps:
+
+--1. CREATING TABLES
+--A. Creating List_table:
+CREATE OR REPLACE TABLE list_table (
+  username VARCHAR,
+  avatar VARCHAR,
+  twitch_url VARCHAR,
+  url VARCHAR,
+  is_live BOOLEAN);
+
+
+
+--B. Creating info_table:
+CREATE OR REPLACE TABLE info_table (
+  id VARCHAR,
+  url VARCHAR,
+  username VARCHAR,
+  player_id NUMERIC,
+  title VARCHAR,
+  status VARCHAR,
+  name VARCHAR,
+  avatar VARCHAR,
+  location VARCHAR,
+  country VARCHAR,
+  joined TIMESTAMP,
+  last_online TIMESTAMP,
+  followers NUMERIC,
+  is_streamer BOOLEAN,
+  twitch_url VARCHAR,
+  fide NUMERIC);
+
+
+--C. Creating stats_table:
+CREATE OR REPLACE TABLE stats_table (
+  chess_daily VARIANT,
+  chess960_daily VARIANT,
+  chess_blitz VARIANT,
+  tactics VARIANT,
+  lessons VARIANT,
+  puzzle_rush VARIANT);
+
+
+--2. CREATING EXTERNAL STAGE:
+CREATE OR REPLACE STAGE s3_stage
+    URL='s3://snowflake-as4/json/'
+    CREDENTIALS=(AWS_KEY_ID='AKIATJYMNFMQFAMX6UUH' AWS_SECRET_KEY='89Txf6954v0UOP1A6XDpnS8t8jlIn18H3HdxOFkg');
+
+--3. Create the Raw JSON Table
+CREATE OR REPLACE TABLE raw_json_table (
+  json_content VARIANT
+);
+
+
+--3. CREATING SNOWPIPE:
+CREATE OR REPLACE PIPE snowpipe_s3_to_snowflake
+  AUTO_INGEST = TRUE
+  AS
+  COPY INTO raw_json_table
+  FROM @s3_stage
+  FILE_FORMAT = (TYPE = 'JSON');
+
+
+--------------------------------------------------------------------------------------------------------------
+
+--4. INSERTING INTO SNOWFLAKE TABLES FROM EXTERNAL STAGE:
+
+-- Insert data into list_table
+INSERT INTO list_table (username, is_live)
+SELECT 
+    value:username::STRING, 
+    value:is_live::BOOLEAN 
+FROM raw_table 
+WHERE value:username IS NOT NULL;
+
+-- Insert data into info_table
+INSERT INTO info_table (username, followers, country, joined, location, name, player_id, status, title)
+SELECT 
+    value:username::STRING, 
+    value:followers::NUMERIC, 
+    value:country::STRING, 
+    TO_DATE(value:joined::STRING, 'YYYY-MM-DD') AS joined, 
+    value:location::STRING, 
+    value:name::STRING, 
+    value:player_id::NUMERIC, 
+    value:status::STRING, 
+    value:title::STRING
+FROM raw_table 
+WHERE value:username IS NOT NULL;
+
+-- Insert data into stats_table
+INSERT INTO stats_table (last_blitz, draw_blitz, loss_blitz, win_blitz, last_bullet, draw_bullet, loss_bullet, win_bullet, last_rapid, draw_rapid, loss_rapid, win_rapid, FIDE)
+SELECT 
+    value:stats:last_blitz::NUMERIC, 
+    value:stats:draw_blitz::NUMERIC, 
+    value:stats:loss_blitz::NUMERIC, 
+    value:stats:win_blitz::NUMERIC, 
+    value:stats:last_bullet::NUMERIC, 
+    value:stats:draw_bullet::NUMERIC, 
+    value:stats:loss_bullet::NUMERIC, 
+    value:stats:win_bullet::NUMERIC, 
+    value:stats:last_rapid::NUMERIC, 
+    value:stats:draw_rapid::NUMERIC, 
+    value:stats:loss_rapid::NUMERIC, 
+    value:stats:win_rapid::NUMERIC, 
+    value:FIDE::NUMERIC 
+FROM raw_table 
+WHERE value:username IS NOT NULL;
+
+
+---------------------------------------------------------------------------------------------------------
+--5. RUNNING QUERIES:
+
+--Running Queries for Analysis
+
+SELECT username, MAX(last_blitz) as best_blitz
+FROM stats_table
+GROUP BY username
+ORDER BY best_blitz DESC
+LIMIT 1;
+
+SELECT username, MAX(last_bullet) as best_bullet
+FROM stats_table
+GROUP BY username
+ORDER BY best_bullet DESC
+LIMIT 1;
+
+SELECT username, MAX(last_rapid) as best_rapid
+FROM stats_table
+GROUP BY username
+ORDER BY best_rapid DESC
+LIMIT 1;
+
